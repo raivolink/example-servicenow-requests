@@ -6,6 +6,7 @@ Library             RPA.JSON
 Library             RPA.Tables
 Library             OperatingSystem
 Library             Collections
+Library             RPA.Robocorp.Vault
 
 Suite Setup         Create SNow Connection
 Suite Teardown      Delete All Sessions
@@ -17,18 +18,22 @@ ${BASE_URL}     https://dev84941.service-now.com
 
 *** Tasks ***
 Servicenow Requests
-    Log To Console    \n
     ${table_of_records}=    Get Records As Table    records=2
     Write table to CSV    ${table_of_records}    ${OUTPUT_DIR}${/}sn.csv
-    #Create New Incident From Data
     Create Table Record And Update It
-    Get Incident Data With Ticket number
+    ${ticket__data}=    Get Incident Data With Ticket number    INC0010016
+    Log    ${ticket__data}    console=${True}
 
 
 *** Keywords ***
 Create SNow Connection
-    [Documentation]    apitest    K11sum11su!
-    ${auth}=    Create List    apitest    K11sum11su!
+    [Documentation]    Creates connection to Servicenow instance
+    ...    Requirers username and password. User has to have api access
+
+    ${SNOW_cred}=    Get Secret    SNow
+    Set Log Level    NONE
+    ${auth}=    Create List    ${SNOW_cred}[username]    ${SNOW_cred}[password]
+    Set Log Level    INFO
     Create Session    snow
     ...    ${BASE_URL}
     ...    auth=${auth}
@@ -52,7 +57,6 @@ Get Records As Table
     &{params}=    Create Dictionary
     ...    sysparm_limit=${records}
     ${response_json}=    Get Records From Table    params=${params}
-    Save JSON to file    ${response_json}    jason.json
     ${records_as_table}=    Create Table    ${response_json}[result]
     RETURN    ${records_as_table}
 
@@ -117,7 +121,8 @@ Create Table Record And Update It
     ...    ${json_body}
 
 Get Incident Data With Ticket number
+    [Arguments]    ${ticket_number}
     &{params}=    Create Dictionary
-    ...    sysparm_query=numberSTARTSWITHINC0010014
+    ...    sysparm_query=numberSTARTSWITH${ticket_number}
     ${ticket__data}=    Get Records From Table    incident    &{params}
-    Log    ${ticket__data}    console=${True}
+    RETURN    ${ticket__data}
